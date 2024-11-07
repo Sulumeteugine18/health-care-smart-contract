@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract HealthcareCommunication {
+
+    // Define a struct to hold a patient's health record
+    struct HealthRecord {
+        string patientName;
+        uint256 dateOfBirth;
+        string medicalHistory;
+        string currentMedications;
+        string allergies;
+    }
+
+    // Mapping to store health records by patient address
+    mapping(address => HealthRecord) private healthRecords;
+
+    // Mapping to store authorized healthcare providers
+    mapping(address => mapping(address => bool)) private authorization;
+
+    // Event emitted when a health record is created or updated
+    event RecordUpdated(address patient, string infoType);
+
+    // Event emitted when a provider is authorized
+    event ProviderAuthorized(address patient, address provider);
+
+    // Event emitted when a provider's authorization is revoked
+    event ProviderRevoked(address patient, address provider);
+
+    // Function to create or update a patient's health record
+    function updateHealthRecord(
+        string memory _name,
+        uint256 _dob,
+        string memory _history,
+        string memory _medications,
+        string memory _allergies
+    ) public {
+        healthRecords[msg.sender] = HealthRecord(_name, _dob, _history, _medications, _allergies);
+        emit RecordUpdated(msg.sender, "Full Record");
+    }
+
+    // Function to authorize a healthcare provider to access the patient's record
+    function authorizeProvider(address _provider) public {
+        authorization[msg.sender][_provider] = true;
+        emit ProviderAuthorized(msg.sender, _provider);
+    }
+
+    // Function to revoke a healthcare provider's access
+    function revokeProvider(address _provider) public {
+        authorization[msg.sender][_provider] = false;
+        emit ProviderRevoked(msg.sender, _provider);
+    }
+
+    // Function for authorized providers to view a patient's health record
+    function viewHealthRecord(address _patient) public view returns (
+        string memory name,
+        uint256 dob,
+        string memory history,
+        string memory medications,
+        string memory allergies
+    ) {
+        require(authorization[_patient][msg.sender], "Not authorized to view this record");
+        HealthRecord storage record = healthRecords[_patient];
+        return (record.patientName, record.dateOfBirth, record.medicalHistory, record.currentMedications, record.allergies);
+    }
+
+    // Function to update only the medical history (e.g., for ongoing treatments)
+    function updateMedicalHistory(address _patient, string memory _newHistory) public {
+        require(authorization[_patient][msg.sender], "Not authorized to update this record");
+        healthRecords[_patient].medicalHistory = _newHistory;
+        emit RecordUpdated(_patient, "Medical History");
+    }
+
+    // Function to update only the current medications (e.g., for new prescriptions)
+    function updateMedications(address _patient, string memory _newMedications) public {
+        require(authorization[_patient][msg.sender], "Not authorized to update this record");
+        healthRecords[_patient].currentMedications = _newMedications;
+        emit RecordUpdated(_patient, "Medications");
+    }
+}
